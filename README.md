@@ -24,6 +24,7 @@ I built this repository myself, from the ground up, to learn how to engineer rea
 | Prompt engineering | Five-part prompt spec, acceptance checks, versioned prompt library | [module02/s14_prompt_anatomy.ipynb](module02/s14_prompt_anatomy.ipynb) |
 | Reasoning | Four reasoning strategies benchmarked on accuracy, tokens, time and cost | [module02/s15_reasoning.ipynb](module02/s15_reasoning.ipynb) |
 | Production prompting | Delimiters, tag escaping, Jinja templates, prompt files, held-out evaluation | [module02/s16_structured.ipynb](module02/s16_structured.ipynb) |
+| Production prompting (pilot) | Pilot version of the Session 16 notebook, used to trial the structured-prompting workflow | [module02/s16_structured_PILOT.ipynb](module02/s16_structured_PILOT.ipynb) |
 | End-to-end projects | Insurance claims pipeline and healthcare booking assistant | [showcase/](showcase/) |
 
 ---
