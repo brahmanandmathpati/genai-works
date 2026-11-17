@@ -1,9 +1,9 @@
-# GenAI Agents Course — Sessions 9 to 21, summarised
+# GenAI Agents Course — Sessions 9 to 27, summarised
 
 One page per session: what it is about, the ideas to remember, one interview answer, and what my own lab
 run showed. Built from each notebook's Part C summary. Model for my runs: `openai/gpt-oss-20b` on Groq.
 
-## The one thread through all thirteen sessions
+## The one thread through all the sessions
 
 ```
  S09a-S09  call a model, count tokens          ─┐
@@ -252,8 +252,110 @@ at the lowest cost.
 debugging, or no capacity to track version changes.
 
 **My run:** all checker tests pass; real answer ₹21,696 for 25 lakh at 8.5% over 20 years. Parity on S20's golden
-set was 8/10 answers — the gap came from a missing `check_eligibility` tool and a shorter system prompt, not
-from the framework.
+set: the first LangChain version scored 7/10 right tool and 8/10 answers because my file had only 2 tools and a
+short system prompt, not because of the framework. After adding `check_eligibility` and the fuller fact sheet it
+scored **9/10 right tool and 10/10 answers**. The one miss: the model read the 8.5% rate from the system prompt
+instead of calling `get_rate`.
+
+---
+
+## S22 · LiteLLM — one call format, many models
+
+**Remember**
+- **LiteLLM** gives one `completion()` call for many providers; the **model string** (`groq/openai/gpt-oss-20b`)
+  picks the provider.
+- A **Router** asks for a group name (`bankassist`) and falls back to another group when the primary fails.
+- **Retry** = same model again; **fallback** = a different model; **timeout** = when to stop waiting.
+- **Log cost per request** with the model that *really* answered. Local models cost $0 per token.
+- LangChain (S21) gave the *parts*; LiteLLM is the *layer under them* — the LLM gateway.
+
+**Honest limits:** another dependency that changes often (pinned `litellm==1.80.0`); a fallback to the same provider
+does not survive that provider's outage; a fallback model can pass the call but fail your golden set.
+
+**Interview:** *How do you make an LLM app resilient to provider outages?* Timeouts, one retry for blips, a fallback
+to a *different* provider for outages, a polite error when everything fails, and a log of which model answered.
+
+**My run:** with the primary deliberately broken, the router answered with `gpt-oss-120b` after 1 fallback. One call
+cost $0.000045 (210 tokens, 0.2 s). The S22 checker passed 9/9.
+
+## S23 · Serving BankAssist — an API with memory and streaming
+
+**Remember**
+- An **endpoint** is a function with a decorator. **FastAPI** describes the app; **uvicorn** runs it.
+- **Pydantic** request models reject bad input with a **422** before it costs a token.
+- The model API is stateless, so the **server** keeps one history per `session_id` and sends a **window** of it.
+- **Streaming** shortens the *wait*, not the total time. **SSE** = `event:` + `data:` + a blank line.
+- `TestClient` tests an API without running a server.
+
+**Honest limits:** memory in RAM is lost on restart; a client-supplied `session_id` is not security; the window
+forgets silently; the API key lives on the server and must never be logged or baked into an image.
+
+**Interview:** *How do you serve an LLM app?* FastAPI behind uvicorn, Pydantic models for input and output, memory
+per session, and streaming so users see the first words quickly.
+
+**My run:** all 10 checks passed — `/health`, validation that rejects an empty message, the 4-turn window, memory
+kept apart per session, SSE formatting, streaming of tool/token/done events, and the `DELETE /sessions` stretch.
+
+## S24 · Embeddings — searching by meaning
+
+**Remember**
+- An **embedding** turns text into a vector so similar meanings sit close together.
+- **Cosine similarity** measures how much two vectors point the same way (1 = same, 0 = unrelated).
+- **Chunking** (one article → sections) decides what a search can return.
+- **Keyword search** misses paraphrases ("parcel arrived smashed" vs "damaged items"); **meaning search** finds them
+  but can return something even for off-topic questions.
+- Measure with **hit@3** and **MRR** on a fixed question set.
+
+**Interview:** *Why does keyword search miss paraphrases?* No shared words. Embeddings match by meaning.
+
+**My run:** keyword search hit@3 **6/10** (MRR 0.50) against meaning search **10/10** (MRR 0.95). My own three
+questions scored 3/3, and the checker passed.
+
+## S25 · Vector databases — a fast index for meaning
+
+**Remember**
+- A vector DB stores the vector **plus metadata** (category, date), so you can filter *and* search by meaning.
+- Filters use the DB's own language (`$and`, `$gte`); store dates as integers (`20260930`) to compare them.
+- **Brute force** compares every vector — fine at 10,000, slow at millions.
+- **HNSW** is an approximate index: much faster, at a small **recall** cost you can measure.
+
+**Interview:** *What does an approximate index trade away?* A little recall (it may miss a true neighbour) for a lot
+of speed. You measure it with recall@k against brute force.
+
+**My run:** `fast` HNSW recall **0.78** at 0.16 ms; `default` **1.00** at 0.36 ms; `accurate` 1.00 at 1.54 ms.
+All my filtered questions returned only rows matching the filter.
+
+## S26 · Production vector stores
+
+**Remember**
+- A **library** (Chroma) lives inside your Python; a **server** (Qdrant, PostgreSQL + pgvector) runs on its own and
+  many apps can share it.
+- **Migration** = read rows, convert to the new store's format, write, then **prove** results match.
+- **pgvector** lets you use normal SQL `WHERE` and keeps vectors beside your other data.
+- **Multi-tenancy:** always filter by the customer id from the login token, never from user input.
+- Choosing a store is a trade-off: ops effort, scale, filtering, cost, data residency.
+
+**Interview:** *How would you pick a vector store?* By the deciding constraint: on-prem + existing PostgreSQL →
+pgvector; no ops team → managed (Pinecone); huge scale with heavy filtering → Qdrant.
+
+**My run:** the same top-3 as Chroma on all 5 questions (overlap **1.00**) on Chroma, Qdrant and pgvector. The tenant
+filter returned only `CUST-1001` rows (SAFE). Qdrant and pgvector ran in Docker.
+
+## S27 · Hybrid search and reranking
+
+**Remember**
+- No single search wins: **keyword (BM25)** is best for exact codes (`SKU-EL-004`), **vectors** for meaning.
+- **Hybrid** merges both: **RRF** merges *rankings* (`1 / (k + rank)`); **weighted fusion** merges normalised
+  *scores* (`alpha·dense + (1 − alpha)·keyword`).
+- A **reranker** (cross-encoder) re-scores the top ~20 together with the question — more accurate but slower, so it
+  is the *second stage*.
+- A **relevance gate** (lowest score you trust) lets the assistant say "I don't know" for off-topic questions.
+
+**Interview:** *Why do you need both keyword and vector search?* Exact terms vs meaning. Hybrid plus a reranker
+beats either alone.
+
+**My run (hit@3 on 25 questions):** keyword 23 · dense 23 · hybrid 24 · weighted 24 · **rerank 25**. Gate **−9.5**
+kept 14/14 in-scope questions and blocked 3/3 off-topic ones (lowest in-scope −8.86, highest out-of-scope −10.20).
 
 ---
 
@@ -268,3 +370,9 @@ from the framework.
 | S19 | `experiments/s19_chat_memory.md` |
 | S20 | `experiments/s20_tools.md`, `s20/stack_router_validate.py` |
 | S21 | `s21/bankassist_lc.py`, `s21/parity.py` |
+| S22 | `s22/bankassist_llm.py` |
+| S23 | `s23/app.py` |
+| S24 | `s24/search.py`, `s24/results.md` |
+| S25 | `s25/store.py`, `s25/results.md` |
+| S26 | `s26/migrate.py`, `s26/results.md` |
+| S27 | `s27/hybrid.py`, `s27/results.md` |

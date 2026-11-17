@@ -41,6 +41,7 @@ edge cases. The structured prompt gave it the house rules in order.
 | `calculate_emi` | `@tool` with the EMI formula `P·r·(1+r)^n / ((1+r)^n − 1)`, rounded | The docstring is the prompt the model reads. `parse_docstring=True` keeps each argument's description. |
 | `ask(llm_with_tools, question, max_steps=3)` | The tool loop (below) | You own the loop and its cap. |
 | `get_rate` | Second tool, returns a rate from a small table | Lets a question need two tool steps. |
+| `check_eligibility` | Third tool: `(existing + proposed EMI) / income`, eligible if at most 50% | Added for parity with S20; it fixed the eligibility questions the S21 version used to miss. |
 
 **`ask()` line by line**
 1. `messages = [SystemMessage(SYSTEM), HumanMessage(question)]` — start the conversation.

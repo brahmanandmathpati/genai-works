@@ -26,7 +26,13 @@ from langchain_openai import ChatOpenAI
 load_dotenv(find_dotenv(usecwd=True), override=True)   # finds the .env in the folder you run from
 
 SYSTEM = ("You are BankAssist, Northwind Bank's assistant. Branches are open 10am-4pm Monday to Friday "
-          "and 10am-1pm on Saturday. Home loan rates: 8.5% floating, 9.0% fixed. Answer in 2-3 sentences.")
+          "and 10am-1pm on Saturday. Home loan rates: 8.5% floating, 9.0% fixed. Answer in 2-3 sentences.\n"
+          "More facts you may quote (never invent a number that is not here): personal loan rate 10.5% fixed; "
+          "no prepayment penalty on floating-rate loans, 2% of the outstanding amount on fixed-rate loans closed "
+          "in the first 12 months; minimum credit score 700; a spouse or blood relative can be a co-applicant; "
+          "loan statements are free; disbursal takes 5-7 working days after approval.\n"
+          "If asked something not covered here, say you do not have that figure. "
+          "Use a tool only for an exact EMI, today's rate, or an affordability check; otherwise answer directly.")
 
 
 # ================================================================ STEP 1 - one model, one call
@@ -160,6 +166,24 @@ def get_rate(product: str, rate_type: str) -> float:
 
 
 TOOLS["get_rate"] = get_rate
+
+
+# Parity work (homework 4): S20 had a third tool, so the S21 version gets it too.
+@tool(parse_docstring=True)
+def check_eligibility(monthly_income: float, existing_emi: float, proposed_emi: float) -> dict:
+    """Checks whether a new EMI is affordable: all EMIs together must be at most 50% of monthly income.
+    Use when the customer asks if they are eligible or can afford a loan.
+
+    Args:
+        monthly_income: take-home income per month in rupees
+        existing_emi: EMIs already being paid per month in rupees, 0 if none
+        proposed_emi: the new EMI per month in rupees
+    """
+    foir = (existing_emi + proposed_emi) / monthly_income
+    return {"foir": round(foir, 3), "limit": 0.5, "eligible": foir <= 0.5}
+
+
+TOOLS["check_eligibility"] = check_eligibility
 
 
 # ================================================================ run me after every TODO
