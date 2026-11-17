@@ -1,0 +1,13 @@
+{% if examples %}
+Worked examples (customer message, then the correct label):
+{% for e in examples %}
+<ticket>{{ e.text }}</ticket>
+{{ e.label }}
+{% endfor %}
+
+{% endif %}
+Now classify this message.
+<ticket>
+{{ ticket }}
+</ticket>
+Allowed labels: {{ labels | join(", ") }}.
