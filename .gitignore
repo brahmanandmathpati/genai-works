@@ -6,5 +6,15 @@ __pycache__/
 .vscode/
 .DS_Store
 agent.py
+!module03/mp1_starter/app/agent.py
 module01/s10_matrix_output.md
 .ipynb_checkpoints/
+
+# Instructor-only material (decks, delivery guides) - never push
+/S[0-9]*/
+
+# Session 24: cached help-centre vectors (rebuilt automatically)
+module04/.s24_cache/
+module04/.s25_chroma/
+module04/.s26_qdrant/
+module04/.s27_cache/

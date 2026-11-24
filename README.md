@@ -1,296 +1,483 @@
-# GenAI & AI Agents — Hands-On Engineering Portfolio
+# GenAI · Agentic AI · AI Agents — course repo
 
-I built this repository myself, from the ground up, to learn how to engineer real applications on top of large language models. It is not a collection of copy-pasted snippets. Every folder contains working code, measured experiments, automated tests and written findings.
+Instructor: **Ajit Byru** · `ajitbyru@gmail.com` · github.com/byruajit
 
-## What this repo shows about me
+This repository is the single source of truth for the course: every command shown in class is here, character for character. If a slide and this README disagree, the README wins.
 
-- **I measure before I trust.** Token counts are checked against provider billing, models are compared on cost, latency and quality, and classifiers are scored on held-out data.
-- **I write testable LLM code.** The logic around the model is plain Python with offline tests, so it can be checked without an API key.
-- **I know where a model should and should not be in control.** The model reads messy text. Code owns decisions, safety rules and sequencing.
-- **I work across providers.** Groq, Gemini and local Ollama models all run behind one codebase.
-- **I think about cost and failure.** Rate limits, daily token budgets, retries, caching and cost per 1,000 requests are built in, not bolted on.
+**Rule for the whole course: every Python command starts with `uv run`.** Never plain `python`, never `conda`. Have Anaconda? Keep it — it is never used and never touched. See `(base)` in your prompt? Ignore it.
+
+> **Starting at Session 9?** Session 1's Git section is covered by the Git & GitHub webinar — watch it before Session 14. Do only step 8 of Session 1 (clone this repo), then all of Session 2's setup.
 
 ---
 
-## At a glance
+## Session 1 — Git & GitHub
 
-| Area | What I built | Where |
+Two repos live side by side in `Documents`: **genai-course-work** (yours — you push) and **genai-agents-course** (this one — you pull).
+
+| # | Step | Command |
 |---|---|---|
-| LLM fundamentals | Token counting, billing reconciliation, cost in INR, embeddings plotted with PCA | [module01/s09_tokens.ipynb](module01/s09_tokens.ipynb) |
-| Model selection | Eliminate, score, verify framework over a model catalog | [module01/s10_model_matrix.ipynb](module01/s10_model_matrix.ipynb) |
-| Multi-provider code | One `ask()` function across Groq, Gemini and Ollama, plus a temperature study | [module01/s11_providers.ipynb](module01/s11_providers.ipynb) |
-| Local models | Memory-fit calculator, tool-calling probe, speed comparison | [module01/s12_local_models.ipynb](module01/s12_local_models.ipynb) |
-| Vision + structured output | Scanned documents to validated KYC records, with retry and human fallback | [module01/s13_vision_structured.ipynb](module01/s13_vision_structured.ipynb) |
-| Prompt engineering | Five-part prompt spec, acceptance checks, versioned prompt library | [module02/s14_prompt_anatomy.ipynb](module02/s14_prompt_anatomy.ipynb) |
-| Reasoning | Four reasoning strategies benchmarked on accuracy, tokens, time and cost | [module02/s15_reasoning.ipynb](module02/s15_reasoning.ipynb) |
-| Production prompting | Delimiters, tag escaping, Jinja templates, prompt files, held-out evaluation | [module02/s16_structured.ipynb](module02/s16_structured.ipynb) |
-| Production prompting (pilot) | Pilot version of the Session 16 notebook, used to trial the structured-prompting workflow | [module02/s16_structured_PILOT.ipynb](module02/s16_structured_PILOT.ipynb) |
-| End-to-end projects | Insurance claims pipeline and healthcare booking assistant | [showcase/](showcase/) |
+| 1 | Install Git and VS Code, then **close and reopen the terminal** (already have them? verify only) | `winget install --id Git.Git -e` · `winget install --id Microsoft.VisualStudioCode -e` · `git --version` · `code --version` |
+| 2 | Identity — real name, professional email | `git config --global user.name "Your Name"` · `git config --global user.email "you@example.com"` · `git config --global init.defaultBranch main` · `git config --global core.autocrlf true` (Windows) |
+| 3 | Create **your** repo in the browser | github.com → New → `genai-course-work` → Public → tick "Add a README file" → Create |
+| 4 | Clone it | `cd ~\Documents` · `git clone https://github.com/<your-username>/genai-course-work.git` · `cd genai-course-work` · `code .` |
+| 5 | First commit (edit README.md) | `git status` · `git add README.md` · `git commit -m "Add intro to README"` · `git push` |
+| 6 | Second commit (create `notes/session01.md`) | `git add .` · `git commit -m "Session 1 notes"` · `git push` · `git log --oneline` |
+| 7 | Branch, change, merge | `git switch -c experiment` · edit · `git add . && git commit -m "Experiment"` · `git switch main` · `git merge experiment` · `git push` · `git branch -d experiment` |
+| 8 | Clone this course repo alongside | `cd ~\Documents` · `git clone https://github.com/byruajit/genai-agents-course.git` · `cd genai-agents-course` · `type .gitignore` · `git pull` |
+| 9 | **Checkpoint** | Your GitHub page shows ≥ 2 commits and the merge; `git config --global --list` shows your name and email |
+
+Start every session with `git pull` in this repo. If it refuses because you saved a notebook, see [UPDATING.md](UPDATING.md) (or run `uv run python tools/update_course.py`).
+
+**Secrets:** `.env` is in `.gitignore`, so `git add` ignores it. If a key ever reaches a commit it is public within minutes — revoke it in the Groq console and create a new one.
 
 ---
 
-## Projects
+## Session 2 — set up your machine (Windows, PowerShell)
 
-### 1. Insurance claims pipeline — [showcase/a2_insurance/](showcase/a2_insurance/)
+Already have VS Code, Git or Python? Keep them. Skip the matching install line and run the version check only. Everyone runs steps 1, 2 and 5–8.
 
-A customer types a claim in plain, messy English. The system turns it into a structured form and routes it.
-
-```text
-free-text claim -> model extracts JSON form -> code routes by severity -> templated reply
-```
-
-- The model has exactly one job: read the text and fill a fixed JSON schema.
-- Routing is a plain Python function that receives only the parsed form, never the model client. It cannot call the model even by accident.
-- Eight mock claims cover minor, major, injury and no-injury cases, plus one ambiguous and one suspicious claim.
-- Tests: offline tests for the schema and router, plus live tests that skip automatically when no API key is set.
-
-### 2. Healthcare appointment assistant — [showcase/a3_healthcare/](showcase/a3_healthcare/)
-
-A patient messages a clinic to book an appointment.
-
-```text
-safety rule -> intent router -> slot filling -> booking -> confirmation
-   (code)       (model reads)   (model reads,     (code)     (template)
-                                 code decides
-                                 what to ask next)
-```
-
-- An emergency rule runs before any model call. For an emergency message, no model call happens at all.
-- The model only classifies intent and extracts details. The question order, availability lookup and confirmation text are all code.
-- The assistant cannot invent an appointment slot, because availability is a data table, not generated language.
-- Seven scripted patient conversations, 15 offline tests using a keyword stand-in for the model, and one live test.
-- Mock data only. This demonstrates a code-owned safety check; it is not a medical tool.
-
----
-
-# Module 1 — LLM foundations
-
-Before writing any prompt, I wanted to understand the machine: what a model actually receives, what it costs, which one to pick, where it can run, and how to get reliable data out of it.
-
-## Session 9b — Tokens, cost, context and embeddings
-
-**Question I set out to answer:** what does a model actually see, and what does it cost?
-
-**What I built** ([tokens_utils.py](module01/tokens_utils.py))
-- `count_tokens` and `show_tokens` using `tiktoken` with the `o200k_harmony` encoding, so I can see exactly how text is split.
-- `usage_for` to send a real request and read the token usage the provider reports back.
-- `cost_inr` to turn token counts into rupees using price cards (at an exchange rate of Rs 84 per USD), scaled by number of calls.
-- `embed_via_ollama` using the `nomic-embed-text` model, and `pca_2d` to squash embeddings into a 2-D plot.
-- Ten words (loan, EMI, interest, credit score, bank, hospital, doctor, prescription, cricket, monsoon) embedded and plotted. Banking words cluster apart from healthcare and weather/sport words, which shows what "meaning as geometry" looks like. The embeddings are cached in a JSON file so the notebook still works when Ollama is not running.
-
-**Findings**
-
-`tiktoken` counts only the text I write, but the provider's `usage` figure is higher because chat-template wrapper tokens are added behind the scenes. For Groq `openai/gpt-oss-20b` that wrapper is a fixed **71 tokens per request**. Subtract it and the counts match `tiktoken` exactly. Token counts also differ across tokenizers: the same Telugu sentence cost about 4x more tokens on an Ollama model than under `o200k_harmony`.
-
-| Text | tiktoken | Groq usage | Groq minus wrapper | Ollama usage |
-|---|---|---|---|---|
-| English | 16 | 87 | 16 | 41 |
-| Telugu | 25 | 96 | 25 | 132 |
-| Python | 35 | 106 | 35 | 61 |
-| JSON | 25 | 96 | 25 | 49 |
-
-**Why it matters:** if you estimate cost from word counts or from one tokenizer, you will be wrong, especially for non-English text. Budgets have to be built on measured usage.
-
-## Session 10 — Choosing a model without guessing
-
-**Question:** how do you pick a model for a business case without relying on hype?
-
-**The method I implemented** ([landscape_utils.py](module01/landscape_utils.py))
-1. **Eliminate.** `eligible()` removes any model that fails a hard constraint for the scenario: data residency, latency, context window or call volume. It also returns the reasons, so a rejection can be explained.
-2. **Score.** `rank()` normalises cost, latency and quality to a common scale and applies the weights that suit each business scenario.
-3. **Verify.** The winner is tested on real prompts before anyone trusts it.
-
-**Supporting pieces**
-- `monthly_cost_usd` / `monthly_cost_inr` project a monthly bill from calls per day and tokens per call (30-day month).
-- `time_stream` measures real response timing on the same prompt across models.
-- [models_catalog.json](module01/models_catalog.json) holds the catalog. Prices are indicative (Sep 2026). Quality and latency start as estimates which I overwrite with my own measurements.
-
-**The test case:** salary Rs 60,000/month, existing EMIs Rs 8,000/month, loan Rs 8,00,000 at 11.5% over 60 months. The code computes the right answer independently: EMI **Rs 17,594.09** and ratio **42.7%**, under the 50% cutoff. `check_answer()` extracts the numbers from a model's reply and accepts it only if the EMI is within 1% and the ratio within 0.6 points. A 1–5 `RUBRIC` handles the parts a machine cannot grade, such as clarity.
-
-**Why it matters:** the "best" model changes with the scenario. A cheap fast model can win for high-volume work, and a data-residency rule can rule out a hosted model entirely.
-
-## Session 11 — Providers, sampling and temperature
-
-**Question:** can one codebase work with any provider, and what does temperature really change?
-
-**What I built** ([providers_utils.py](module01/providers_utils.py), [tickets_data.py](module01/tickets_data.py))
-- Client factories for Groq, Gemini and Ollama, all through the OpenAI-compatible interface.
-- A single `ask(client, model, system, user, temperature=...)` function used for every provider.
-- Gemini model auto-discovery: `list_gemini_models` and `pick_gemini_model` filter out image, audio, embedding and other non-chat models and pick a usable chat model, so a retired model name does not break the notebook.
-- `classify_ticket`, a support-ticket classifier returning structured output.
-- A ticket set split into clear tickets and deliberately borderline tickets, to test temperature fairly.
-
-**Findings**
-- If the code differs between providers only in `BASE_URL`, `API_KEY` and `MODEL`, it is provider-agnostic. Switching provider is a config change, not a rewrite.
-- Temperature only matters near a decision boundary. Clear tickets gave the same answer at every temperature I tried. Borderline tickets are where answers started to vary.
-
-**Why it matters:** this is the habit that avoids vendor lock-in, and it shows that "set temperature to 0 for everything" and "turn it up for creativity" are both oversimplifications.
-
-## Session 12 — Local models
-
-**Question:** what can I run on my own machine, and when does that make sense?
-
-**What I built** ([local_models_utils.py](module01/local_models_utils.py), [local_models_catalog.json](module01/local_models_catalog.json))
-- A catalog of six local models from 1B to 120B parameters (llama3.2:1b and 3b, qwen2.5:7b, llama3.1:8b, gpt-oss:20b and 120b), each tagged with precision and tool-calling support.
-- `model_size_gb`: memory estimated from parameters x bytes per parameter. The pre-read example: a 20B model needs roughly 40 GB at 16-bit but about 10 GB at 4-bit.
-- `fits_on` and `laptop_options`: given a RAM size, list which models fit, keeping 2 GB of headroom for the system.
-- `probe_tool_calling`: sends a test request with a tool definition and checks whether the model actually emits a structured tool call or only describes one in prose.
-- `speed_table`: compares response speed across the models I tried.
-
-**Findings**
-- Quantization (storing weights in fewer bits) is what makes a 20B model laptop-sized, at a small accuracy cost.
-- Not every small model can call tools. A model can write a fluent sentence about calling a function without ever producing the structured call. That decides whether it can power an agent.
-- Why a bank might accept a slower local model: data never leaves the building.
-
-## Session 13 — Vision and structured output
-
-**Question:** how do I turn a photo of a document into data a downstream system can trust?
-
-**What I built** ([vision_utils.py](module01/vision_utils.py), [make_sample_docs.py](module01/make_sample_docs.py))
-- A script that generates three sample documents as images: an ID card, a utility bill and a deliberately noisy scan. Each has a ground-truth text file to compare against.
-- `encode_image` and `vision_messages` to send an image as base64 inside a chat message.
-- `find_vision_model` to pick an available vision-capable model from a preference list.
-- `read_image_text` and `compare_to_truth` to transcribe an image and check, field by field, what the model got right.
-- A **two-stage pipeline**: a vision model reads the picture into text, then a text model turns that text into a record. Each stage can use the cheapest model that is good enough.
-- A `KycRecord` Pydantic model carrying business rules, for example the PAN number must match `^[A-Z]{5}[0-9]{4}[A-Z]$`.
-
-**Three levels of getting JSON, implemented and compared**
-
-| Level | Function | What is guaranteed |
+| # | Step | Command |
 |---|---|---|
-| 1. Prompt only | `level1_prompt_only` | Nothing. The model usually complies, sometimes adds prose or markdown fences. |
-| 2. JSON mode | `level2_json_mode` | Valid JSON, but of any shape. |
-| 3. Schema-enforced | `level3_schema` | The exact shape, on models with strict mode such as `gpt-oss-20b`. |
+| 1 | Install uv, then **close and reopen the terminal** (have uv? `uv self update`) | `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"` then `uv self version` |
+| 1b | Only if step 1 still says "not recognized" after reopening | `[Environment]::SetEnvironmentVariable('Path', $env:Path + ';' + $HOME + '\.local\bin', 'User')` → reopen |
+| 2 | Python 3.12 via uv (do this even if you have Python; it never touches yours) | `uv python install 3.12` then `uv python list` |
+| 3 | Git and VS Code, then reopen the terminal (already installed? verify only) | `winget install --id Git.Git -e` · `winget install --id Microsoft.VisualStudioCode -e` · `git --version` · `code --version` |
+| 4 | Clone and open — never in `C:\WINDOWS\system32` | `cd ~\Documents` · `git clone https://github.com/byruajit/genai-agents-course.git` · `cd genai-agents-course` · `code .` |
+| 5 | Install pinned packages (VS Code terminal, Ctrl+`) | `uv sync` |
+| 6 | Private config — paste **your own** Groq key as `API_KEY` (free: console.groq.com → API Keys → Create); do not touch `MODEL`; no quotes; no trailing space | `copy .env.example .env` (Mac/Linux: `cp .env.example .env`) |
+| 7 | First LLM call — read the token count | `uv run python hello.py` |
+| 8 | **Checkpoint** | `uv run pytest tests/test_setup.py` → `3 passed` |
+| 9 | Background / homework | ollama.com → install → `ollama pull llama3.2:3b` |
 
-`success_rate` runs each level repeatedly so I compare them on numbers rather than one lucky run.
+### Mac / Linux differences
+Step 1: `curl -LsSf https://astral.sh/uv/install.sh | sh` · Step 3: `xcode-select --install` (Mac) or `sudo apt install git` (Ubuntu); VS Code from code.visualstudio.com, then Command Palette → "Shell Command: Install code command in PATH" · Step 6: `cp` not `copy`. Everything else is identical.
 
-**The key lesson, in code:** shape is not truth. Even a schema-enforced reply can contain a PAN with the wrong pattern or a misread digit. So `parse_and_validate` checks the business rules, and `extract_validated` **retries once** by feeding the exact validation error back to the model. If it still fails, the record goes to a human. Deciding where automation stops is a design decision, not a bug.
-
----
-
-# Module 2 — Prompt engineering
-
-Module 1 was about the model. Module 2 is about what I say to it, and how to treat prompts as engineered, tested, versioned assets.
-
-## Session 14 — Prompt anatomy
-
-**Question:** what makes one prompt reliably better than another?
-
-**What I built** ([prompt_utils.py](module02/prompt_utils.py), [prompt_tasks.py](module02/prompt_tasks.py))
-- `PromptSpec`: a prompt broken into five parts (role, task, context, constraints, output format), with `missing_parts` and `show_tips` that flag what a draft is missing.
-- **Acceptance checks**, small functions that test an output: `max_words`, `max_chars`, `has`, `has_none_of`, `bullet_lines`, `matches`, `json_only`, `json_keys`, `json_value`. A `Task` bundles a prompt with its checks, and `run_task` reports pass/fail per check. I write the checks first, then improve the prompt until they pass.
-- Three realistic tasks, including one grounded in a lending policy, so the model has to follow rules it can only learn from the prompt.
-- A **prompt library**: `save_to_library` records each prompt version, the output it produced and the checks it passed, in a file kept under Git. Old versions are never edited; a new version is added beside them.
-- A support-complaint classifier with 0, 1 or several examples (`classify_spec(n_examples)`), scored on a separate test set to show how few-shot examples teach house conventions such as "UPI problems are `account`".
-- Repo tooling: `init_work_repo` and `check_work_repo` set up and validate my own Git repository, with a `.gitignore` that blocks secrets.
-
-**Findings**
-- A model cannot follow a policy it was never shown. Context has to be in the prompt.
-- Examples are the best way to teach rules that are obvious inside an organisation and invisible to a model, but they cost tokens on every call.
-- "Better" needs a number. Acceptance checks turn opinion into a test.
-
-## Session 15 — Reasoning
-
-**Question:** does asking a model to think help, and is it worth the cost?
-
-**What I built** ([reasoning_utils.py](module02/reasoning_utils.py), [reasoning_tasks.py](module02/reasoning_tasks.py))
-
-Four strategies, each a function run on the same problems:
-
-| Strategy | Function | How it works | Cost |
-|---|---|---|---|
-| Plain | `solve_plain` | Reply with only the final answer. | 1 call |
-| Chain of thought | `solve_cot` | Think step by step, then answer. | 1 longer call |
-| Step back | `solve_stepback` | First list the rules and formulas without solving, then solve with them. | 2 calls |
-| Self-consistency | `solve_self_consistency` | Ask 5 times at temperature 0.8 and take the majority vote. | 5 calls |
-
-**The benchmark.** A loan-eligibility policy and ten applicants, each hiding a different trap: a value exactly on a limit, a loan term given in months, a rule that fails quietly. The correct answer for every case is computed independently in Python as ground truth, never taken from a model. Extra problems cover retail totals, insurance payouts, Bayes and dosage.
-
-**What gets measured per strategy:** right or wrong, tokens used, seconds taken, and the number finance asks for, cost per 1,000 questions (`comparison_table`, `strategy_summary`, `case_table`, `accuracy_markdown`). At 200,000 questions a month, a strategy that costs five times as much is not a detail.
-
-**Engineering around real API limits**
-- `DiskCache` remembers every answer on disk, so re-running a cell costs nothing.
-- `Meter` tracks tokens spent against the free-plan limits (8,000 tokens per minute, 200,000 per day).
-- `rate_limit_wait` waits out a per-minute 429 politely, and `DailyLimit` stops cleanly when the daily limit is hit, with saved answers intact.
-- `cost_usd` prices each run from the model's per-million-token rates.
-
-**Hidden reasoning without leaking it.** Prompts ask for working inside `<scratchpad>` tags and the real reply inside `<final>` tags. `split_scratchpad` removes the scratchpad, acceptance checks run on `<final>` only, and `scratch_leaks` checks whether the working repeated something that must never be revealed, such as an internal score or cutoff.
-
-**Prompt v2.** `run_spec`, `pass_rate` and `verdict` compare version 1 and version 2 of a prompt over repeated runs, so each improvement is justified with numbers and added to the library as v2, without editing v1.
-
-**Findings**
-- Some models already think before answering (hidden reasoning tokens are billed as output), so "think step by step" may add little, while a small local model can change a lot. This is measured, not assumed.
-- Thinking cannot recover a rule the model was never told, and five votes on a wrong rule can never reach the right answer.
-- Do not pay for a vote on arithmetic a calculator can do.
-
-## Session 16 — Structured, production-grade prompting
-
-**Question:** how do I build a prompt that is safe to reuse, easy to review and properly tested?
-
-**What I built** ([structured_utils.py](module02/structured_utils.py), [structured_tasks.py](module02/structured_tasks.py))
-
-*1. Keeping instructions and data apart*
-- Four ways of presenting a customer ticket, compared in code: plain text, XML-style tags, a Markdown fence and JSON (`STYLES`), with `prompt_size` to compare their token cost.
-- `escape_tags` neutralises my own tag names (`ticket`, `example`, `label`) inside customer text, so a customer cannot type a closing tag and break out. This removes accidental confusion; I treat it as the first layer of defence, not a complete answer to prompt injection.
-- A set of **trap tickets** that quote the bank's own words, such as "reply with the word account", to show why tagged data survives them.
-
-*2. Templates*
-- Prompts are built from **Jinja** templates with loops for few-shot examples and a conditional that shows the examples block only when examples exist.
-- **Strict undefined**: a missing variable is a loud error, never a silent blank. `render_check` verifies the template renders for five sample tickets.
-
-*3. The system prompt as a versioned file*
-- `load_prompt_file` reads `prompts/support_classifier/system.md` and `user.j2`, parses the `---` front matter holding name and version, and raises a clear `PromptFileError` if a file is missing or empty. Prompts live in Git with a reviewable history.
-
-*4. Honest evaluation*
-- A labelled set split into a **training pool** and a **held-out set** of 20 tickets that never appear in a prompt.
-- `pick_examples` draws a fixed number of examples per label (reproducible by seed) from the training pool only, and `check_no_leak` raises `LeakError` if a held-out ticket sneaks into a prompt. That is the leakage that inflates scores by "marking your own homework".
-- The structured prompt is measured against a one-line baseline on the held-out tickets. Results go into a **confusion table** and a mistakes table that show where errors go, and a Markdown report records the model and the SHA of the prompt files used (`heldout_markdown`, `save_heldout_report`). The target I worked to was 16 of 20.
-- The classifier handles four labels (card, loan, account, other) and the bank's house rules, for example a change of personal details is `other` even if it mentions a card.
-
-**Findings**
-- Moving from a typed prompt to a prompt a team can ship takes three habits: separate data from instructions, build from a template that fails loudly, and keep prompts as versioned files.
-- An accuracy number only means something if the test items never appeared in the prompt.
+### Switching to Ollama (rate limits, or private data)
+In `.env`, comment the three Groq lines and uncomment the three Ollama lines. No code changes.
 
 ---
 
-## Engineering practices
+## Troubleshooting — the three errors that cover almost everything
 
-- **Tests for every session** in [tests/](tests/), from `test_setup.py` through `test_s16.py`. Offline tests need no key; live-API tests are kept separate.
-- **Submission checkers** ([module02/check_submissions.py](module02/check_submissions.py) and the Session 15 and 16 versions) that fetch a GitHub repo and verify the expected files are present.
-- **Reproducible environment**: dependencies pinned with `uv`, Python 3.12 pinned in `.python-version`.
-- **Secrets handled properly**: `.env` is git-ignored and `.env.example` documents what is needed.
-- **Written explanations**: every session has a glossary of the terms I learned and a pre-read with my own answers.
-- **Python patterns for agents**: a one-page cheatsheet covering errors as data, registry + kwargs dispatch, decorators, typed state, Pydantic validation and JSON handling ([cheatsheet/python-for-agents.md](cheatsheet/python-for-agents.md)).
+**`uv` is not recognized** — you did not reopen the terminal. Close every terminal (including VS Code's) and open again. Still failing → step 1b.
 
-## Tech stack
+**401 invalid API key** — open `.env` (not `.env.example`). No quotes around the key, no trailing space, not the placeholder. If in doubt, create a new key in the Groq console and paste it again.
 
-Python 3.12 · uv · Jupyter · tiktoken · Pydantic · Jinja2 · pytest · NumPy (PCA) · Pillow · Groq API · Google Gemini API · Ollama (local models)
+**Ollama: model not found / connection refused** — not found → `ollama pull llama3.2:3b`. Connection refused → Ollama is not running: check the tray icon, or run `ollama serve` in a second terminal.
+
+**Model not found (404)** — the pinned model was retired. Run `uv run python list_models.py`, pick a current model, and tell the instructor; do not change `MODEL` on your own.
+
+Also seen: a warning that `UV_NATIVE_TLS` is deprecated — harmless, ignore. `uv version` (no dashes) errors outside a project — use `uv self version`.
 
 ---
 
-## Run it yourself
+## Keys
+You create your own free Groq key at console.groq.com. It lives in `.env` and nowhere else. If it ever appears in chat, code or a screenshot, revoke it in the console immediately and create a new one.
+
+## Links
+- Community channel: _(added by instructor)_
+- Submission form: _(added by instructor)_
+- Baseline quiz: _(added by instructor)_
+- Fix videos: _(coming)_
+
+## Session 9a — your environment and your first LLM call, explained
 
 ```powershell
-uv sync                      # install pinned dependencies
-copy .env.example .env       # paste your Groq key as API_KEY
-uv run python hello.py       # first LLM call, prints token count
-uv run pytest                # run all checkpoints
+git pull
+uv sync
+uv run jupyter lab module01/s09a_first_call.ipynb
+uv run pytest tests/test_s09a.py         # offline check of the notebook
 ```
+A guided notebook for Session 2's setup and `hello.py`: the two repositories, `uv`, `.env`, and the first call rebuilt cell by cell (whole reply, then streamed, then the token count). Runs without a key: model cells say "skipped".
 
-To use local models instead, comment out the Groq lines in `.env`, uncomment the Ollama lines, then run `ollama pull llama3.2:3b` and `ollama pull nomic-embed-text`.
+**All notebooks from Session 9a to 16 now have long explanations** (Part A: why, the words you need, how the session is built; six steps per section; Part C: summary, interview questions, troubleshooting). If `git pull` complains that your local changes would be overwritten, follow [UPDATING.md](UPDATING.md).
 
-Open any notebook with, for example, `uv run jupyter lab module01/s09_tokens.ipynb`. Tests that call a live API depend on provider uptime and may fail on a bad day.
+## Session 9b — tokens, cost, context, embeddings
 
-**Troubleshooting:** `uv` not recognized — reopen all terminals. 401 error — check `.env`, not `.env.example`. Ollama connection refused — run `ollama serve`. 404 model not found — run `uv run python list_models.py`. 503 from Gemini — wait a minute and retry.
-
-## Repository layout
-
-```text
-module01/      Sessions 9b–13: LLM foundations
-module02/      Sessions 14–16: prompt engineering
-showcase/      a2_insurance, a3_healthcare
-tests/         checkpoints per session
-cheatsheet/    python-for-agents.md
-hello.py       first LLM call
-list_models.py models your key can use
+```powershell
+git pull
+uv sync                                  # adds jupyter, tiktoken, numpy, matplotlib
+ollama pull nomic-embed-text             # 270 MB, for the embeddings section (optional: a cached copy is used if Ollama is absent)
+uv run jupyter lab module01/s09_tokens.ipynb
+uv run pytest tests/test_s09.py          # checkpoint
 ```
+Pre-read: `module01/reading_tokens.md` (10 minutes). First run of `tiktoken` downloads its encoding file once (needs internet).
+
+## Session 10 — the model landscape
+
+```powershell
+git pull
+uv sync
+uv run jupyter lab module01/s10_model_matrix.ipynb
+uv run pytest tests/test_s10.py          # checkpoint (works offline)
+```
+Pre-read: `module01/reading_landscape.md` (10 minutes). Terms: `module01/terms_s10.md`. Catalog numbers are **indicative** — verifying two of them is part of the lab. To submit: run the last notebook cell, then upload `module01/s10_matrix_output.md` through the submission form (personal repositories start at Session 14).
+
+## Showcase A2 — Insurance (workflow)
+
+```powershell
+uv run python showcase/a2_insurance/insurance_claim.py --all
+uv run pytest showcase/a2_insurance/test_a2_insurance.py
+```
+Free-text claim -> the model extracts a structured form -> code routes by severity -> a template answers.
+First showcase in the course's 4x4 matrix (row A: workflow, column: Insurance). See showcase/a2_insurance/README.md.
+
+## Session 11 — multi-provider calls
+
+```powershell
+git pull
+uv sync
+uv run jupyter lab module01/s11_providers.ipynb
+uv run pytest tests/test_s11.py          # checkpoint (offline-safe)
+```
+Pre-read: `module01/reading_providers.md`. You will need a free Gemini key today (aistudio.google.com) in
+addition to your existing Groq key — see `.env.example`. Terms: `module01/terms_s11.md`.
+
+## Session 12 — local and open models
+
+```powershell
+git pull
+uv sync
+ollama pull qwen2.5:7b          # a second local model, for comparison (do this at home)
+uv run jupyter lab module01/s12_local_models.ipynb
+uv run pytest tests/test_s12.py          # checkpoint (offline-safe)
+```
+Pre-read: `module01/reading_local_models.md`. Terms: `module01/terms_s12.md`.
+
+## Session 13 — images in, structured data out
+
+```powershell
+git pull
+uv sync                                  # no new packages (Pillow already comes with matplotlib)
+uv run jupyter lab module01/s13_vision_structured.ipynb
+uv run pytest tests/test_s13.py          # checkpoint (offline-safe)
+```
+Pre-read: `module01/reading_structured.md`. Terms: `module01/terms_s13.md`. The sample documents are **synthetic**
+(`module01/sample_docs/`) — fictional people, fake numbers, a SAMPLE watermark.
+
+## Showcase A3 — Healthcare (workflow)
+
+```powershell
+uv run python showcase/a3_healthcare/appointment_flow.py --all
+uv run pytest showcase/a3_healthcare/test_a3_healthcare.py
+```
+Safety rule -> intent router -> slot filling -> booking -> confirmation. The model reads; the code decides.
+See `showcase/a3_healthcare/README.md`.
+
+## Session 14 — prompt anatomy (Module 2 begins) and your own work repository
+
+```powershell
+git pull
+uv sync                                  # no new packages
+uv run jupyter lab module02/s14_prompt_anatomy.ipynb
+uv run pytest tests/test_s14.py          # checkpoint (offline-safe)
+```
+Pre-read: `module02/reading_prompt_anatomy.md`. **Before class:** read `module02/work_repo_steps.md` and have your GitHub username ready.
+Terms: `module02/terms_s14.md`. Your submission is a pushed `prompts/library.md` in **your own** `genai-course-work` repository, not this one.
+
+## Session 15 — reasoning prompts: when thinking helps, and what it costs
+
+```powershell
+git pull
+uv sync                                  # no new packages
+uv run jupyter lab module02/s15_reasoning.ipynb
+uv run pytest tests/test_s15.py          # checkpoint (offline-safe)
+```
+Pre-read: `module02/reading_reasoning.md` (10 minutes). Terms: `module02/terms_s15.md`. A loan-eligibility checker for ten applicants, asked four ways
+(plain, step by step, step back, vote), with tokens, seconds and cost per 1,000 questions. **Budget:** about 40,000-80,000 tokens of a free key's
+200,000-a-day limit; answers are remembered on disk (`~/.genai_course/`), so re-running a cell is free. Your submission is `experiments/s15_accuracy_table.md`
+and version-2 entries in `prompts/library.md`, both pushed to **your own** `genai-course-work` repository.
+
+## Session 16 — structured prompting: tags, templates, and a system prompt in a file
+
+```powershell
+git pull
+uv sync                                  # no new packages (Jinja2 already comes with Jupyter)
+uv run jupyter lab module02/s16_structured.ipynb
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run pytest tests/test_s16.py -rs      # checkpoint: your classifier needs 16/20 on the held-out set
+```
+Pre-read: `module02/reading_structured.md` (10 minutes). Terms: `module02/terms_s16.md`. The customer-support classifier (card, loan, account, other): customer text inside
+`<ticket>` tags, a Jinja template with variables, and the system prompt as a file loaded at runtime. **Budget:** about 40,000-70,000 tokens of a free key's
+200,000-a-day limit; answers are remembered on disk (`~/.genai_course/`), so re-running an unchanged cell is free. Your submission is `prompts/support_classifier/system.md`,
+`prompts/support_classifier/user.j2` and `experiments/s16_heldout.md`, pushed to **your own** `genai-course-work` repository. The checkpoint test is skipped without a key
+(read the reason with `-rs`: a skip is not a pass) and fails on purpose with a key but no `WORK_REPO`.
+
+## Session 17 — prompt evaluation: a golden set, a rubric, and a judge
+
+```powershell
+git pull
+uv sync                                  # no new packages
+uv run jupyter lab module02/s17_evaluation.ipynb
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run pytest tests/test_s17.py -rs      # checkpoint: a complete evaluation report, both prompts, 20 tickets, + a 5-ticket spot-check
+```
+No pre-read notebook: Part A of `s17_evaluation.ipynb` is self-contained. Scores your Session 14 baseline against your Session 16 structured prompt
+on the SAME twenty held-out tickets (reused, not new data), using a second model call as an LLM judge against a four-criterion rubric (correct label,
+cites the right house rule, follows the reply format, invents no policy). Guards against the judge's own biases (position, verbosity, self-preference)
+with a shuffled answer order and a five-ticket human spot-check. **Budget:** about 60,000-90,000 tokens of a free key's 200,000-a-day limit — roughly
+double Session 16's, since every ticket is answered AND judged, for both prompts. Your submission is `experiments/s17_eval.md`, pushed to **your own**
+`genai-course-work` repository; your Session 16 `prompts/support_classifier/` files are read, not changed. The checkpoint test is skipped without a key
+(read the reason with `-rs`: a skip is not a pass).
+
+## Session 18 — defensive prompting: attacking your own classifier, on purpose
+
+```powershell
+git pull
+uv sync                                  # no new packages
+uv run jupyter lab module02/s18_defensive_prompting.ipynb
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run pytest tests/test_s18.py -rs      # checkpoint: a complete defense report, 16 attacks x 2 prompts, + clean accuracy held
+```
+Pre-read: none, Part A of `s18_defensive_prompting.ipynb` is self-contained. Terms: `module02/terms_s18.md`. Attacks Session 16's classifier on purpose
+with 16 adversarial tickets across four families (override, authority, exfiltrate, smuggle), then hardens the system prompt with an instruction
+hierarchy and a scratchpad/final reply split, and re-measures. Session 16's own held-out set checks the defense did not break ordinary accuracy.
+**Budget:** about 50,000-80,000 tokens of a free key's 200,000-a-day limit (16 attack tickets + 20 clean tickets, each prompt). Your submission is
+`experiments/s18_defense.md`, pushed to **your own** `genai-course-work` repository; your Session 16 files are read, not changed. The checkpoint test
+is skipped without a key (read the reason with `-rs`: a skip is not a pass).
+
+## Session 19 — chat state & memory windows: a conversation that actually remembers
+
+```powershell
+git pull
+uv sync                                  # no new packages
+uv run jupyter lab module03/s19_chat_memory.ipynb
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run pytest tests/test_s19.py -rs      # checkpoint: all three memory strategies scored, naive recalls, both fixes cost less
+```
+Pre-read: Part A of `s19_chat_memory.ipynb` is self-contained. Terms: `module03/terms_s19.md`. Starts Module 3 (LLM Applications) with a new,
+standalone running example — BankAssist, a bank product-FAQ assistant — built around one fact every session depends on: an API call is stateless,
+and "the assistant remembers" is your own code resending the conversation's `messages` list on every call. Builds a real 17-turn scripted conversation
+with a fact planted at turn 2 and asked for back at turn 17, measures the naive (resend-everything) cost growth, then fixes it two ways — a sliding
+window (flat cost, silent forgetting) and summarization (recovers recall, one extra call, a new risk of a wrong summary) — and compares all three
+honestly rather than assuming either fix "just works." **Budget:** about 20,000-35,000 tokens of a free key's 200,000-a-day limit (three 17-turn
+conversations, plus summarization's own extra calls). Your submission is `experiments/s19_chat_memory.md`, pushed to **your own** `genai-course-work`
+repository. The checkpoint test is skipped without a key (read the reason with `-rs`: a skip is not a pass).
+
+## Session 20 — function calling: giving BankAssist hands
+
+```powershell
+git pull
+uv sync                                  # no new packages
+ollama pull llama3.2:3b                  # only if your .env points at Ollama (BASE_URL=http://localhost:11434/v1)
+uv run jupyter lab module03/s20_function_calling.ipynb
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run pytest tests/test_s20.py -rs      # checkpoint: golden set scored four ways, model named
+```
+Pre-read: Part A of `s20_function_calling.ipynb` is self-contained. Terms: `module03/terms_s20.md`. BankAssist from Session 19
+gets three tools (`calculate_emi`, `get_rate`, `check_eligibility`) using the raw OpenAI-compatible API, no framework. The round trip is
+built by hand, then in a loop capped at three steps. Students watch a model call the wrong tool with invented arguments, then fix it three
+ways: prompt guidance, argument validation fed back to the model, and a router that decides "needs a tool?" first. A 10-question golden set
+is scored four ways (right tool, valid arguments, correct answer). Runs unchanged on Groq `openai/gpt-oss-20b` or local Ollama
+`llama3.2:3b`. **Budget:** on Groq about 30,000-50,000 tokens of the 200,000-a-day limit; on Ollama, free. Answers are cached in
+`~/.genai_course/s20_cache.json`. Your submission is `experiments/s20_tools.md`, pushed to **your own** `genai-course-work` repository.
+Instructor pre-class run on any model: `uv run python module03/s20_golden_run.py` (or `--ollama llama3.2:3b`).
+
+## Session 21 — LangChain: your first build
+
+```powershell
+git pull
+uv sync                                  # NEW: langchain==1.4.7 and langchain-openai==1.1.9 (pinned)
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run jupyter lab module03/s21_langchain_build.ipynb      # Section 1 copies the starter into your work repo
+uv run python $env:WORK_REPO\s21\bankassist_lc.py        # run YOUR file, from the course repo folder
+uv run pytest tests/test_s21.py -rs      # checkpoint: tests the functions YOU wrote (offline, no tokens)
+```
+Pre-read: Part A of `s21_langchain_build.ipynb`. Terms: `module03/terms_s21.md`. **This is the first session where you write the code.**
+You build BankAssist again with LangChain in your own file, `s21/bankassist_lc.py` in **your own** `genai-course-work` repository,
+starting from `module03/s21_starter.py`: five TODOs (model, chain, `@tool`, your capped tool loop, and a stretch second tool), with a
+check after each. Using ChatGPT is allowed: paste `module03/s21_version_card.md` first, **never paste your `.env` or API key**, and be
+ready to explain your code. Stuck? `module03/s21_common_errors.md`. Runs on Groq `openai/gpt-oss-20b` or Ollama `llama3.2:3b`.
+**Budget:** a few thousand tokens; the checkpoint itself makes no model calls. Submission: commit and push `s21/bankassist_lc.py`.
+
+## Session 22 — LiteLLM: one call format, many models, fallbacks and cost
+
+```powershell
+git pull
+uv sync                                  # NEW: litellm==1.80.0 (pinned)
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run jupyter lab module03/s22_litellm_build.ipynb      # Section 1 copies the starter into your work repo
+uv run python $env:WORK_REPO\s22\bankassist_llm.py       # run YOUR file, from the course repo folder
+uv run pytest tests/test_s22.py -rs      # checkpoint: tests the functions YOU wrote (offline, no tokens)
+```
+Pre-read: Part A of `s22_litellm_build.ipynb`. Terms: `module03/terms_s22.md`. Build-your-own, like Session 21: in
+`s22/bankassist_llm.py` (your own work repo) you call any provider with one `completion()` call, compare two models by
+changing a string, add a Router that falls back when the primary fails (you break the primary on purpose), and log
+tokens, cost and latency per request. Your models come from your existing `.env` (Groq `gpt-oss-20b` primary, the larger
+`gpt-oss-120b` as fallback; Ollama users see the notebook's table). ChatGPT: paste `module03/s22_version_card.md` first,
+never paste your `.env` or key. Stuck? `module03/s22_common_errors.md`. **Budget:** a few thousand tokens.
+
+## Session 23 — serving BankAssist: FastAPI, memory per session, streaming
+
+```powershell
+git pull
+uv sync                                  # NEW: fastapi==0.162.0 and uvicorn==0.54.0 (pinned)
+$env:WORK_REPO = "$HOME\Documents\genai-course-work"
+uv run jupyter lab module03/s23_serving.ipynb             # Section 1 copies the starter into your work repo
+uv run python $env:WORK_REPO\s23\app.py                  # terminal 1: YOUR server on http://127.0.0.1:8000 (/docs to try it)
+# Simplest start: module03\s23_simple.py is a COMPLETE server. One command copies it to your work repo as s23\app.py
+# and prints the exact commands to run next:   uv run python module03/s23_setup.py
+# Then change one CHANGE ME line at a time (memory window, /health, prompt, step cap, request size).
+uv run python module03/s23_client.py                     # terminal 2: talks to it - memory, sessions, 422, a streamed answer
+uv run pytest tests/test_s23.py -rs      # checkpoint: tests YOUR endpoints with a scripted model (offline, no tokens)
+```
+Pre-read: Part A of `s23_serving.ipynb`. Terms: `module03/terms_s23.md`. You write `s23/app.py` in **your own** work repository from
+`module03/s23_starter.py`. PART 1 is given: Session 21's BankAssist, now streaming. PART 2 is yours, with six TODOs: `GET /health`, Pydantic
+request and response models, a sliding-window `window()`, `POST /chat` with one memory per `session_id`, `POST /chat/stream` as Server-Sent
+Events, and a stretch `DELETE /sessions/{id}`. ChatGPT: paste `module03/s23_version_card.md` first. Stuck? `module03/s23_common_errors.md`.
+Section 10 bridges to LiteLLM (S22) and the gateway (S23b). **Homework, required for Session 23b:** Docker Desktop installed and
+`docker run hello-world` working. Submission: commit and push `s23/app.py`.
+
+## Session 23b — Gateway + Docker: the LiteLLM proxy, in containers
+
+```powershell
+git pull
+docker run hello-world                                    # Docker must work (homework); no Docker? see Path B in the lab
+cd module03\s23b_gateway ; docker compose up --build litellm      # terminal 1: the gateway on http://localhost:4000
+uv run python module03/s23b_client.py                    # terminal 2 (course repo folder): answer, model group, fallbacks, cost
+docker compose up --build                                 # gateway + a tiny FastAPI app -> http://localhost:8000/docs
+uv run pytest tests/test_s23b.py -rs                      # checkpoint (offline; plus a live check while the gateway runs)
+```
+Lab guide: `module03/s23b_lab.md` (a terminal session, no notebook). Terms: `module03/terms_s23b.md`. Errors: `module03/s23b_common_errors.md`.
+LiteLLM from S22, now run as a **gateway server**: `config.yaml` maps the model groups `shopassist` / `shopassist-backup` to Groq models
+with a fallback; apps send one URL and one key. You call it with raw HTTP and with LangChain, break the primary model in `config.yaml` and
+watch the gateway fall back, then start the gateway and an app together with Docker Compose. Your Groq key stays in your course `.env`
+(`API_KEY`) and never enters an image. Prepares Mini-Project 1 (ShopAssist).
+
+## Session 27 — hybrid search and reranking
+
+**Pre-work at home (~80 MB once):**
+```powershell
+git pull ; uv sync                                                    # NEW: rank-bm25 (keyword search, pure Python)
+uv run python module04/s27_demo.py download                           # the reranker model; S27 then runs offline
+```
+```powershell
+uv run python module04/s27_demo.py all "SKU-EL-004" --in products     # keyword / vectors / hybrid / rerank side by side
+uv run python module04/s27_demo.py explain "HDFC no-cost EMI"          # where a BM25 score comes from, word by word
+uv run python module04/s27_demo.py fuse "PowerCell" --in products      # the RRF arithmetic
+uv run python module04/s27_demo.py compare                             # 22 questions x 5 methods: hit@3, MRR, exact vs meaning
+uv run python module04/s27_demo.py gate                                # the relevance gate: when to say "I don't know"
+uv run jupyter lab module04/s27_hybrid_rerank.ipynb                    # HOMEWORK: Parts A-D
+uv run python module04/s27_setup.py                                    # copies your file to <work repo>\s27\hybrid.py
+uv run python "<your work repo>\s27\hybrid.py"                         # YOUR fusion and reranking step; writes results.md
+uv run pytest tests/test_s27.py -rs                                     # checkpoint (offline)
+```
+Two corpora: the help centre and the 30-product catalog (`module04/products.json`). Terms: `module04/terms_s27.md` · stuck?
+`module04/s27_common_errors.md`.
+
+## Session 26 — production vector stores: Qdrant, pgvector, Pinecone, Weaviate
+
+**Pre-work at home (good Wi-Fi, ~250 MB once):** Docker Desktop running, then
+```powershell
+git pull ; uv sync                                                    # NEW: qdrant-client, psycopg, pgvector
+docker compose -f module04/s26_docker-compose.yml pull               # Qdrant + PostgreSQL/pgvector images
+```
+and create free accounts (personal email): **Qdrant Cloud** (cloud.qdrant.io - a free 1 GB cluster, no card), **Pinecone**
+(Starter plan) and **Weaviate Cloud** (free cluster). Cloud keys go in the course `.env` only - never commit them. Free
+Qdrant clusters suspend after a week unused; delete your clusters when the course ends.
+
+```powershell
+docker compose -f module04/s26_docker-compose.yml up -d              # start both (Postgres on port 5433)
+uv run python module04/s26_demo.py migrate                            # S25 ChromaDB -> Qdrant AND pgvector
+uv run python module04/s26_demo.py compare "how long do refunds take" # same question, three databases
+uv run python module04/s26_demo.py tenants                            # the multi-tenancy leak, and the fix
+uv run jupyter lab module04/s26_vector_stores.ipynb                   # HOMEWORK: Parts A-D (incl. pgvector hands-on)
+uv run python module04/s26_setup.py                                   # copies your file to <work repo>\s26\migrate.py
+uv run python "<your work repo>\s26\migrate.py"                       # YOUR migration, overlap, tenant filter
+uv run pytest tests/test_s26.py -rs                                    # checkpoint (offline)
+docker compose -f module04/s26_docker-compose.yml down                # stop when done (data kept)
+```
+No Docker? Qdrant runs in-process with the same code; only the pgvector part needs Docker. Qdrant dashboard:
+http://localhost:6333/dashboard. Terms: `module04/terms_s26.md` · stuck? `module04/s26_common_errors.md`.
+
+## Session 25 — vector databases: a fast index for meaning
+
+```powershell
+git pull
+uv sync                                   # NEW: chromadb==1.5.5 - a vector database inside Python (files on disk, no server)
+uv run python module04/s25_demo.py load                                  # 53 sections -> a ChromaDB collection
+uv run python module04/s25_demo.py search "how long do refunds take" --category payments --since 2026-06-01
+uv run python module04/s25_demo.py recall                                # 20,000 vectors: exact vs three HNSW settings
+uv run jupyter lab module04/s25_vector_db.ipynb                          # HOMEWORK: Parts A-D
+uv run python module04/s25_setup.py                                      # copies your homework file to <work repo>\s25\store.py
+uv run python "<your work repo>\s25\store.py"                            # YOUR metadata, filters, recall; writes s25\results.md
+uv run pytest tests/test_s25.py -rs                                       # checkpoint (offline)
+```
+Every help-centre article now has a **category** and an **updated** date (`module04/help_centre_meta.json`) to filter on.
+Four TODOs: `make_metadata()`, `build_where()`, `recall_at_k()` and two filtered questions of your own. Terms:
+`module04/terms_s25.md` · stuck? `module04/s25_common_errors.md`. Needs Session 24's model (downloaded once).
+
+## Session 24 — embeddings: searching by meaning (starts Module 4)
+
+```powershell
+git pull
+uv sync                                   # NEW: fastembed==0.9.1 - embedding models on your CPU, no key, no cost
+uv run python module04/s24_demo.py search "my earbuds stopped working"   # keyword vs meaning, side by side
+uv run python module04/s24_demo.py compare                              # keyword vs two embedding models, hit@3
+uv run jupyter lab module04/s24_embeddings.ipynb                       # HOMEWORK: Parts A-D
+uv run python module04/s24_setup.py                                     # copies your homework file to <work repo>\s24\search.py
+uv run python "<your work repo>\s24\search.py"                          # runs YOUR functions; writes s24\results.md
+uv run pytest tests/test_s24.py -rs                                      # checkpoint (offline)
+```
+Taught on the board and live; the notebook is **homework**. Terms: `module04/terms_s24.md`. Data: the 14 Northwind help-centre
+articles in `module04/help_centre/` (53 sections, the same store as MP1). The first embedding downloads **BAAI/bge-small-en-v1.5**
+(~67 MB) once - use home Wi-Fi or a hotspot; after that everything is offline. Your file has four TODOs: `cosine()`, `top_k()`,
+`split_sections()` and three questions of your own. Stuck? `module04/s24_common_errors.md`. Submission: commit and push `s24/`.
+
+## Mini-Project 1 — ShopAssist (classroom, 2 sessions × 2.5 h on separate days, solo)
+
+```powershell
+git pull
+# on GitHub: create an EMPTY repo called shopassist-mp1, then git clone it (e.g. into Documents)
+# add ONE line to this course repo's .env:   MP1_REPO=C:\Users\you\Documents\shopassist-mp1
+uv run python module03/mp1_setup.py                       # copies the starter + writes YOUR repo's .env (git-ignored)
+cd <your shopassist-mp1 folder> ; uv sync ; docker compose up --build    # gateway + ShopAssist -> http://localhost:8000/docs
+uv run python eval/run_eval.py                            # evidence: 10 golden, a memory probe, 4 attacks
+cd <course repo> ; uv run pytest tests/test_mp1.py -rs    # checkpoint (offline; reads YOUR repo via MP1_REPO in .env)
+```
+Errors: `module03/mp1_common_errors.md`. A new app, built alone: order support for Northwind Store (a fictional online store) with
+LangChain tools, per-session memory, a defended prompt and streamed answers (S18-S23), reaching Groq **only through the LiteLLM
+gateway** and run with Docker Compose (S23b). Six tasks (T1-T6): return rules, argument validation, Security rules, memory choice,
+`/health`, and the README/report. Commit after each task. BankAssist stays the practice app.
+
+## Layout
+```
+module01/                   Sessions 9a-13 notebooks, helpers, pre-reads
+hello.py                    Session 2 first call
+list_models.py              which models your key can use
+tests/test_setup.py         Session 2 checkpoint
+tests/test_s09a.py          Session 9a notebook check (offline)
+tests/test_s09.py           Session 9b checkpoint
+tests/test_s10.py           Session 10 checkpoint
+showcase/a2_insurance/      Showcase A2 (Insurance workflow) + its own tests
+showcase/a3_healthcare/     Showcase A3 (Healthcare workflow) + its own tests
+tests/test_s11.py           Session 11 checkpoint
+tests/test_s12.py           Session 12 checkpoint
+tests/test_s13.py           Session 13 checkpoint
+tests/test_s14.py           Session 14 checkpoint
+tests/test_s15.py           Session 15 checkpoint
+tests/test_s16.py           Session 16 checkpoint
+tests/test_s17.py           Session 17 checkpoint
+tests/test_s18.py           Session 18 checkpoint
+tests/test_s19.py           Session 19 checkpoint
+tests/test_s20.py           Session 20 checkpoint
+tests/test_s21.py           Session 21 checkpoint (tests your own s21/bankassist_lc.py)
+tests/test_s22.py           Session 22 checkpoint (tests your own s22/bankassist_llm.py)
+tests/test_s23.py           Session 23 checkpoint (tests your own s23/app.py)
+tests/test_s23b.py          Session 23b checkpoint (gateway files; live check while the gateway runs)
+module03/s23b_gateway/      Session 23b gateway: config.yaml, docker-compose.yml, proxy + hello_app Dockerfiles
+tests/test_mp1.py           Mini-Project 1 checkpoint (tests your own shopassist-mp1 repo)
+module03/mp1_starter/       Mini-Project 1 starter: ShopAssist app, gateway, Compose, eval set
+module02/                   Module 2 (prompt engineering): S14-S18 notebooks, helpers, work-repo steps
+module03/                   Module 3 (LLM applications): S19-S23 notebooks, helpers, work-repo steps
+module04/                   Module 4 (embeddings & vector databases): S24-S26 demos, homework notebooks, help centre, S26 Docker file
+tests/test_s24.py           Session 24 checkpoint (tests your own s24/search.py)
+tests/test_s25.py           Session 25 checkpoint (tests your own s25/store.py)
+tests/test_s26.py           Session 26 checkpoint (tests your own s26/migrate.py)
+cheatsheet/python-for-agents.md
+tools/update_course.py      safe update: back up your edited notebooks, then git pull
+UPDATING.md                 how to update when git pull refuses
+.env.example                copy to .env
+pyproject.toml              pinned dependencies (uv sync)
+```
+Modules are added as the course progresses (`module01/ … module14/`).
