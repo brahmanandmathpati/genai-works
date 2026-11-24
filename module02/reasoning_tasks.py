@@ -186,7 +186,7 @@ S3 = Problem(
           "Use EMI = P x r x (1+r)^n / ((1+r)^n - 1), with P the loan amount and n the number of instalments. "
           "What is the EMI, rounded to the nearest rupee?"),
     kind="number", truth=_emi(), tol=1.0, answer_format="the EMI in rupees, as a whole number",
-    trap="(1.01)^36 is about 1.4308: a slip there moves the EMI by hundreds of rupees. This is the one to hand to a calculator tool (Session 21).")
+    trap="(1.01)^36 is about 1.4308: a slip there moves the EMI by hundreds of rupees. This is the one to hand to a calculator tool (Session 20).")
 
 STRETCH = [S1, S2, S3]
 PROBLEMS = LOAN_CASES + OTHER + STRETCH

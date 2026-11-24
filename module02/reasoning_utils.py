@@ -609,7 +609,7 @@ def check_library_v2(repo_path, need: int = 2) -> list:
     out = [CheckResult("library still has your version 1 entries", any(v == 1 for _, v in pairs),
                        "" if any(v == 1 for _, v in pairs) else "a v1 entry is missing: never overwrite, always add")]
     out.append(CheckResult(f"version 2 entries for at least {need} tasks", len(v2) >= need,
-                           f"found {len(v2)}: {sorted(v2)}" if v2 else "none yet: set SAVE_V2 = True in section 9 and run that cell once"))
+                           f"found {len(v2)}: {sorted(v2)}" if v2 else "none yet: set SAVE_V2 = True in section 11 and run that cell once"))
     missing_v1 = sorted(t for t in v2 if (t, 1) not in pairs)
     out.append(CheckResult("every v2 task still has its v1 entry (history kept)", not missing_v1,
                            f"no v1 for {missing_v1}" if missing_v1 else ""))
