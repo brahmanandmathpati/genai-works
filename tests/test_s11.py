@@ -82,7 +82,7 @@ def test_live_groq_classifies_a_clear_ticket():
 @pytest.mark.skipif(not HAS_GEMINI, reason="no Gemini key in .env")
 def test_live_gemini_classifies_a_clear_ticket():
     client = gemini_client()
-    model = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+    model = os.getenv("GEMINI_MODEL") or "gemini-flash-latest"   # blank in .env means "use the default"
     tid, text = CLEAR_TICKETS[1]  # technical_clear
     result = classify_ticket(client, model, text, temperature=0.0)
     assert result["valid"], f"unexpected label: {result['label']!r}"
