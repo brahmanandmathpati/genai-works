@@ -1,0 +1,24 @@
+[33m7ee871b[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Raise S18 answer max_tokens to 1500 so gpt-oss-20b reasoning does not empty the reply
+[33me762fae[m Remove superseded S16 pilot notebook
+[33m8970045[m Fix S17 judge token ceiling; read WORK_REPO from .env in S14-S16
+[33m3ee4519[m Add Session 18: defensive prompting (attacks, instruction hierarchy, scratchpad/final)
+[33md15f66d[m Add Session 17: prompt evaluation (golden set, rubric, LLM judge)
+[33m292ff77[m Detailed explanations for S9a-S16 notebooks; update guide and tool; fix S11 classify_ticket max_tokens
+[33m2f725bb[m S_16_pilot
+[33m881071a[m S16
+[33mb6f5c79[m S15
+[33m2512c5d[m env example
+[33m830603c[m Session 14 update
+[33mb7f2088[m new patch update
+[33mb69f2da[m Module 1 S13 and Agent A3
+[33mf886d3e[m S11 fix: pick a working Gemini model; .env rule in the template
+[33m7ca3dcd[m Session 12
+[33mf61c988[m Session 11: multi-provider calls, sampling controls, temperature sweep
+[33mf1d8c4d[m Session 10: model landscape notebook, catalog, reading, terms
+[33m3b2a95e[m Session 9b: tokens notebook, helpers, pre-read, terms
+[33m5736c72[m Session 9b: tokens notebook, helpers, pre-read, terms
+[33m4f75867[m Revert "First file for commit"
+[33mf29b157[m First file for commit
+[33mbe4baae[m Ignore instructor demo file
+[33me67eb9a[m Print usage once
+[33med0cfba[m Course repo: Session 1 Git, Session 2 setup
