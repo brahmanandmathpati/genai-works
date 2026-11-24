@@ -86,6 +86,9 @@ CLASSIFIER_SYSTEM = (
 
 def classify_ticket(client: OpenAI, model: str, ticket_text: str, *, temperature: float = 0.0) -> dict:
     """Same shape as ask(), specialised for the sweep: one word in, one label out."""
-    result = ask(client, model, CLASSIFIER_SYSTEM, ticket_text, temperature=temperature, max_tokens=10)
-    label = result["text"].strip().lower().strip(".")
+    # max_tokens is a safety ceiling, not a target. Reasoning models (like the course's gpt-oss-20b) spend hidden
+    # "thinking" tokens from the same budget before the one-word answer, so a tiny ceiling such as 10 leaves an
+    # empty reply. 1000 leaves room to think; a one-word answer still costs only what it uses.
+    result = ask(client, model, CLASSIFIER_SYSTEM, ticket_text, temperature=temperature, max_tokens=1000)
+    label = (result["text"] or "").strip().lower().strip(".")
     return {**result, "label": label, "valid": label in {"billing", "technical", "general"}}

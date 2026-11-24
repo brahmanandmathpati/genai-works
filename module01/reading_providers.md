@@ -15,5 +15,3 @@
 **Why temperature matters for a routing decision.** If your system classifies a support ticket into "billing" or "technical", that decision should not depend on a coin flip. Today's lab deliberately runs the same ticket several times at several temperatures so you can see — not just hear — where it starts to drift.
 
 **One question to arrive with:** if your code never changes when you switch providers, what exactly does change?
-
--> Three things, and only three: the `BASE_URL` (where the request goes), the `API_KEY` (who you are to that provider), and the `MODEL` name (which brain answers). Everything else — the messages list, the roles, `temperature`, `max_tokens`, how you read `usage` — stays identical because both providers speak the same OpenAI-compatible request/response shape. That's the whole point of "provider-agnostic": the code doesn't know or care which vendor is on the other end of `BASE_URL`, it only cares that the shape of the conversation and the reply is the same.
